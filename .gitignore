@@ -1,0 +1,11 @@
+/target
+.gitignore~
+Cargo.lock
+Cargo.toml~
+config.toml~
+.config.toml.un~
+.Cargo.toml.un~
+..gitignore.un~
+src/.main.rs.swp
+src/main.rs~
+
