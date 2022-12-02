@@ -6,12 +6,17 @@ mod comms;
 
 fn main(){
 
-//    let cid = env::args().nth(1).unwrap();
-    let cid:u8 = 0xAE;
-    println!("The telemetery requested for id: ", );
+    let cid = env::args().nth(1).unwrap();
+
+    let cid: u8 = cid.parse().unwrap();
+
+    println!("The telemetery requested for id: {}", cid);
+
+    
     let mut conn = Comms::new(0x57, false);
     conn.comms_init();
     let mut i=0;
+    
     loop{
 
         println!("Sending telemetry request {} on i2c!", cid);
@@ -30,5 +35,6 @@ fn main(){
             break;
         }
     }
+    
 
 }
