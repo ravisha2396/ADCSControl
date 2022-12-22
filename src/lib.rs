@@ -1,8 +1,7 @@
 pub mod comms;
-use std::env;
 use comms::Comms;
 
-fn send_request(command_id: u8) -> u8 {
+pub fn send_request(command_id: u8) -> u8 {
 
     let mut conn = Comms::new(0x57, false);
     conn.comms_init();
@@ -10,6 +9,14 @@ fn send_request(command_id: u8) -> u8 {
     let buf = conn.comms_block_rx(command_id);
     buf
 
+}
+
+pub fn send_command(command_id: u8, data: &[u8]) {
+    
+    let mut conn = Comms::new(0x57, false);
+    conn.comms_init();
+
+    conn.comms_block_tx(command_id, data)
 }
 
 pub fn request_temp() -> u8 {
