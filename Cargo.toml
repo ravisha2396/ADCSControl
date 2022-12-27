@@ -8,3 +8,6 @@ edition = "2021"
 [dependencies]
 i2c-linux = "0.1.2"
 config = "0.10"
+
+[lib]
+name = "dora_adcs"
