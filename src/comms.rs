@@ -1,7 +1,8 @@
 extern crate i2c_linux;
-use i2c_linux::I2c;
-use std::fs::File;
+use i2c_linux::{I2c, Message, WriteFlags, ReadFlags};
+use std::{fs::File, io::{Error, ErrorKind}};
 
+pub const TELECOMMAND_STATUS_ID: u8 = 240;
 pub struct Comms{
     i2c: I2c<File>,
     addr: u16,
@@ -24,69 +25,53 @@ impl Comms{
 
         println!("I2C device setup successful!");
 
-        
-    
     }
 
-    pub fn comms_block_tx(&mut self, command: u8, data: &[u8]){
-        // Test block transfers
-        // self.i2c.smbus_write_block_data(command, data).expect("error in send");
-
+    pub fn comms_block_tx(&mut self, command: u8, data: &[u8])->Result<(), std::io::Error>{
         // Serial transmit command and then data in separate i2c transfers
-        self.i2c.smbus_write_byte(command).expect("command not valid!");
-        for i in 0..data.len(){
-            self.i2c.smbus_write_byte(data[i]).expect("data invalid");
-        }
-    }
+        let _res = self.i2c.i2c_write_block_data(command, data);
 
-    pub fn comms_block_rx(&mut self, command: u8)->u8{
+        let mut buf;
+        // poll tele acknowledge id till it becomes 1
+        loop{
+            buf = [0u8; 32];
+            self.i2c.i2c_read_block_data(TELECOMMAND_STATUS_ID, buf.as_mut_slice()).expect("error in ack check");
 
-        // self.i2c.smbus_read_block_data(command, buf).expect("error in read");
-        self.i2c.smbus_read_byte_data(command).unwrap()
-    }
-    
-    pub fn check_transmission(&mut self)-> bool{
-        // message id = 240
-        // frame length 4 bytes
-        // check processed flag
-        // check validity status - TC Error Status
-        let mut buf =[0u8; 32];
-        self.i2c.smbus_read_block_data(240, &mut buf).expect("error in ack check");
-
-
-        if buf[1]&1==0 {
-            return false;
-        }
-
-        else{
-            if(buf[2] == 0){
-                return true;
-            }
-            else{
-                println!("Command errored with error number {}", buf[2]);
-                return false;
+            if buf[1]&0x1 == 0x1{
+                break;
             }
         }
+        // check command validity by checking error byte
+        match buf[2]{
+            0 => Ok(()),
+            1 => Err(Error::new(ErrorKind::Other, "Invalid TC")),
+            2 => Err(Error::new(ErrorKind::Other, "Incorrect Length")),
+            3 => Err(Error::new(ErrorKind::Other, "Incorrect Parameter")),
+            4 => Err(Error::new(ErrorKind::Other, "CRC Failed")),
+            _ => Err(Error::new(ErrorKind::Other, "Unknown ADCS Error"))
+
+        }
+    }
+
+    pub fn comms_block_rx(&mut self, command: u8, buf: &mut [u8])-> Result<usize, std::io::Error>{
+
+        let mut msgs = [
+            Message::Write {
+                address: self.addr,
+                data: &[command],
+                flags: WriteFlags::default(),
+            },
+            Message::Read {
+                address: self.addr,
+                data: buf,
+                flags: ReadFlags::default(),
+            },
+        ];
+
+        return self.i2c.i2c_transfer(&mut msgs)
+            .map(|_| msgs[1].len());
 
     }
-    //pub fn comms_write_read(&mut self, )
 
 }
 
-
-// fn main(){
-
-//     let mut conn = Comms::new(0x53, false);
-//     conn.comms_init();
-//     loop{
-
-//         println!("Sending 0xab continuously on i2c!");
-//         let write_buf = [0xabu8;1];
-//         conn.comms_block_tx(0x52, &write_buf);
-//         println!("Reading from sensor!");
-//         let mut read_buf = [0u8];
-
-//         conn.comms_block_rx(0x51, &mut read_buf);
-//     }
-
-// }
